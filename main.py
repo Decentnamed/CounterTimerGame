@@ -98,7 +98,7 @@ scores = []
 
 PLAY_TEXT_INPUT = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect((screen_width / 4, 400), (1000, 100)), manager=manager,
                                                object_id='#main_text_entry')
-PLAY_TEXT_INPUT.set_text_length_limit(17)  # Ustawienie limitu na 20 znaków
+PLAY_TEXT_INPUT.set_text_length_limit(18)  # Ustawienie limitu na 20 znaków
 
 def main_screen():
     SCREEN = pygame.display.set_mode((0, 0),pygame.FULLSCREEN, display=0)
@@ -273,19 +273,19 @@ def score(player_nickname, scores, best_score, screen):
         OPTIONS_REPLAY.update(screen)
 
         player_score = get_font(35).render(F"PLAYER: {player_nickname}", True, LIGHT_GRAY)
-        player_score_rect = player_score.get_rect(center=(screen_width / 4, screen_height / 5 + 50))
+        player_score_rect = player_score.get_rect(center=(screen_width / 2, screen_height / 5 + 50))
 
-        attempt1_text = get_font(20).render(f"1 attempt: T = {scores[0]:.13f} s", True, LIGHT_GRAY)
-        attempt1_rect = attempt1_text.get_rect(center=(screen_width / 4, screen_height / 4 + 100))
+        attempt1_text = get_font(20).render(f"1 attempt: accuracy = {scores[0]:.13f} s", True, LIGHT_GRAY)
+        attempt1_rect = attempt1_text.get_rect(center=(screen_width / 2, screen_height / 4 + 100))
 
-        attempt2_text = get_font(20).render(f"2 attempt: T = {scores[1]:.13f} s", True, LIGHT_GRAY)
-        attempt2_rect = attempt2_text.get_rect(center=(screen_width / 4, screen_height / 3 + 150))
+        attempt2_text = get_font(20).render(f"2 attempt: accuracy = {scores[1]:.13f} s", True, LIGHT_GRAY)
+        attempt2_rect = attempt2_text.get_rect(center=(screen_width / 2, screen_height / 3 + 150))
 
-        attempt3_text = get_font(20).render(f"3 attempt: T = {scores[2]:.13f} s", True, LIGHT_GRAY)
-        attempt3_rect = attempt2_text.get_rect(center=(screen_width / 4, screen_height / 2 + 100))
+        attempt3_text = get_font(20).render(f"3 attempt: accuracy = {scores[2]:.13f} s", True, LIGHT_GRAY)
+        attempt3_rect = attempt2_text.get_rect(center=(screen_width / 2, screen_height / 2 + 100))
 
-        best_score_text = get_font(20).render(f"Best score: T = {best_score:.13f} s", True, RED)
-        best_score_rect = best_score_text.get_rect(center=(screen_width / 4, screen_height / 1.5 + 50))
+        best_score_text = get_font(20).render(f"Best score: accuracy = {best_score:.13f} s", True, RED)
+        best_score_rect = best_score_text.get_rect(center=(screen_width / 2, screen_height / 1.5 + 50))
 
         screen.blit(player_score, player_score_rect)
         screen.blit(attempt1_text, attempt1_rect)
@@ -418,7 +418,27 @@ def play_start(screen, attempt):
                 # Oblicz wartość y na podstawie upływu czasu
                 y = AXIS_X_START_POINT_Y - amplitude * math.sin(frequency * elapsed_time)  # Użyj upływu czasu w sinusoidzie
                 points.append((int(AXIS_X_START_POINT_X + (elapsed_time / duration) * (AXIS_X_END_POINT_X - AXIS_X_START_POINT_X)), int(y)))  # Dodaj punkt do listy
-
+            else:
+                # close gate
+                output = 'PULSe'
+                instr_cnt91.write(':OUTPut:TYPE ' + output)
+                print("Gate close pulse HIGH")
+                time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                output = 'OFF'
+                instr_cnt91.write(':OUTPut:TYPE ' + output)
+                print("Gate close pulse LOW")
+                instr_cnt100.query('*OPC?')
+                data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
+                data_str = data_str.strip()  # to remove \n at the end
+                if len(data_str) > 0:
+                    data = list(map(float, data_str.split(',')))  # Convert the string to python array
+                else:
+                    data = []
+                elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
+                drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
+                running = False
+                return data[0]
+            
             # Rysuj wszystkie punkty
             for point in points:
                 pygame.draw.circle(screen, RED, point, 2)  # Rysuj punkty sinusoidy
@@ -529,7 +549,7 @@ def main_game_window():
 
         pygame.display.update()
 
-def score_board_window(main_window_running = True):
+def score_board_window(main_window_running=True):
     # Tworzenie połączenia z bazą danych
     conn = sqlite3.connect('scores.db')
     c = conn.cursor()
@@ -537,54 +557,76 @@ def score_board_window(main_window_running = True):
     SCREEN = secondary_screen()
     pygame.display.set_caption("Okno 2")
 
+    scroll_offset = 0  # Przesunięcie scrolla
+    max_scroll = 0     # Maksymalne przewinięcie
+
     while main_window_running:
-        top10_scores = get_best_scores(c, limit=12)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                main_window_running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                # Przewijanie góra/dół za pomocą kółka myszy
+                scroll_offset += event.y * 20  # 60 pikseli na jedno przewinięcie
+                scroll_offset = max(min(scroll_offset, 0), -max_scroll)
+
+        top10_scores = get_best_scores(c, limit=1000)
         place = 1
-        scores_height = 700
-        scores_width = 20
-        attempts_height = 680
+        scores_height = 700 + scroll_offset
+        scores_width = 10
+        attempts_height = 680 + scroll_offset
+
         SCREEN.blit(SCORE_BOARD_BG, (0, 0))
 
+        # Nagłówek tabeli
         SCORE_BOARD_TEXT = get_font(80).render("SCORE BOARD", True, ORANGE)
-        SCORE_BOARD_TEXT_RECT = SCORE_BOARD_TEXT.get_rect(center=(screen_width_secondary / 2, screen_height_secondary / 4))
-
+        SCORE_BOARD_TEXT_RECT = SCORE_BOARD_TEXT.get_rect(center=(screen_width_secondary / 2, screen_height_secondary / 4 + 50))
         SCREEN.blit(SCORE_BOARD_TEXT, SCORE_BOARD_TEXT_RECT)
 
         SCORE_BOARD_HEADER_TEXT = get_font(15).render("- PLAYER NAME ------------- BEST SCORE ---------------- ATTEMPTS -----", True, RED)
         SCORE_BOARD_HEADER_RECT = SCORE_BOARD_HEADER_TEXT.get_rect(center=(screen_width_secondary / 2, screen_height_secondary / 3))
         SCREEN.blit(SCORE_BOARD_HEADER_TEXT, SCORE_BOARD_HEADER_RECT)
-        
+
+        # Wyświetlanie wyników
         for rekord in top10_scores:
-            SCORE_BOARD_PLACE_TEXT = get_font(15).render(f"{place}.", True, ORANGE)
-            SCORE_BOARD_PLACE_RECT = SCORE_BOARD_PLACE_TEXT.get_rect(center=(scores_width, scores_height))
+            # Sprawdzamy, czy wpis znajduje się w widocznym obszarze
+            if screen_height_secondary / 3 + 40 < scores_height < screen_height_secondary - 40:
+                SCORE_BOARD_PLACE_TEXT = get_font(15).render(f"{place}.", True, ORANGE)
+                SCORE_BOARD_PLACE_RECT = SCORE_BOARD_PLACE_TEXT.get_rect(topleft=(scores_width, scores_height))
 
-            SCORE_BOARD_PLAYER_NAME_TEXT = get_font(15).render(f"{rekord[0]}", True, WHITE)
-            SCORE_BOARD_PLAYER_NAME_RECT = SCORE_BOARD_PLAYER_NAME_TEXT.get_rect(center=(scores_width + 150, scores_height))
+                SCORE_BOARD_PLAYER_NAME_TEXT = get_font(15).render(f"{rekord[0]}", True, WHITE)
+                SCORE_BOARD_PLAYER_NAME_RECT = SCORE_BOARD_PLAYER_NAME_TEXT.get_rect(topleft=(scores_width + 50, scores_height))
 
-            SCORE_BOARD_BEST_SCORE_TEXT = get_font(15).render(f"{rekord[1]}", True, RED)
-            SCORE_BOARD_BEST_SCORE_RECT = SCORE_BOARD_BEST_SCORE_TEXT.get_rect(center=(scores_width + 490, scores_height))
+                SCORE_BOARD_BEST_SCORE_TEXT = get_font(15).render(f"{rekord[1]}", True, ORANGE)
+                SCORE_BOARD_BEST_SCORE_RECT = SCORE_BOARD_BEST_SCORE_TEXT.get_rect(topleft=(scores_width + 370, scores_height))
 
-            SCORE_BOARD_ATTEMPT1_TEXT = get_font(12).render(f"1st. {rekord[2]}", True, WHITE)
-            SCORE_BOARD_ATTEMPT1_RECT = SCORE_BOARD_ATTEMPT1_TEXT.get_rect(center=(scores_width + 870, attempts_height))
+                SCORE_BOARD_ATTEMPT1_TEXT = get_font(12).render(f"1st. {rekord[2]}", True, WHITE)
+                SCORE_BOARD_ATTEMPT1_RECT = SCORE_BOARD_ATTEMPT1_TEXT.get_rect(topleft=(scores_width + 750, attempts_height))
 
-            SCORE_BOARD_ATTEMPT2_TEXT = get_font(12).render(f"2nd. {rekord[3]}", True, WHITE)
-            SCORE_BOARD_ATTEMPT2_RECT = SCORE_BOARD_ATTEMPT2_TEXT.get_rect(center=(scores_width + 870, attempts_height + 20))
+                SCORE_BOARD_ATTEMPT2_TEXT = get_font(12).render(f"2nd. {rekord[3]}", True, WHITE)
+                SCORE_BOARD_ATTEMPT2_RECT = SCORE_BOARD_ATTEMPT2_TEXT.get_rect(topleft=(scores_width + 750, attempts_height + 20))
 
-            SCORE_BOARD_ATTEMPT3_TEXT = get_font(12).render(f"3rd. {rekord[4]}", True, WHITE)
-            SCORE_BOARD_ATTEMPT3_RECT = SCORE_BOARD_ATTEMPT3_TEXT.get_rect(center=(scores_width + 870, attempts_height + 40))
+                SCORE_BOARD_ATTEMPT3_TEXT = get_font(12).render(f"3rd. {rekord[4]}", True, WHITE)
+                SCORE_BOARD_ATTEMPT3_RECT = SCORE_BOARD_ATTEMPT3_TEXT.get_rect(topleft=(scores_width + 750, attempts_height + 40))
 
-            SCREEN.blit(SCORE_BOARD_PLACE_TEXT, SCORE_BOARD_PLACE_RECT)
-            SCREEN.blit(SCORE_BOARD_PLAYER_NAME_TEXT, SCORE_BOARD_PLAYER_NAME_RECT)
-            SCREEN.blit(SCORE_BOARD_BEST_SCORE_TEXT, SCORE_BOARD_BEST_SCORE_RECT)
-            SCREEN.blit(SCORE_BOARD_ATTEMPT1_TEXT, SCORE_BOARD_ATTEMPT1_RECT)
-            SCREEN.blit(SCORE_BOARD_ATTEMPT2_TEXT, SCORE_BOARD_ATTEMPT2_RECT)
-            SCREEN.blit(SCORE_BOARD_ATTEMPT3_TEXT, SCORE_BOARD_ATTEMPT3_RECT)
-            place +=1
+                SCREEN.blit(SCORE_BOARD_PLACE_TEXT, SCORE_BOARD_PLACE_RECT)
+                SCREEN.blit(SCORE_BOARD_PLAYER_NAME_TEXT, SCORE_BOARD_PLAYER_NAME_RECT)
+                SCREEN.blit(SCORE_BOARD_BEST_SCORE_TEXT, SCORE_BOARD_BEST_SCORE_RECT)
+                SCREEN.blit(SCORE_BOARD_ATTEMPT1_TEXT, SCORE_BOARD_ATTEMPT1_RECT)
+                SCREEN.blit(SCORE_BOARD_ATTEMPT2_TEXT, SCORE_BOARD_ATTEMPT2_RECT)
+                SCREEN.blit(SCORE_BOARD_ATTEMPT3_TEXT, SCORE_BOARD_ATTEMPT3_RECT)
+
+            place += 1
             scores_height += 100
             attempts_height += 100
 
+        # Ustawienie maksymalnego przewijania
+        max_scroll = max(0, (place - 1) * 100 - (screen_height_secondary - 300))
+
         pygame.display.update()
 
+    conn.close()
+    pygame.quit()
+    
 if __name__ == '__main__':
     game_running = True
     multiprocessing.freeze_support()
