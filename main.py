@@ -123,6 +123,14 @@ def get_best_scores(c, limit=10):
     c.execute("SELECT * FROM scores ORDER BY bestscore ASC LIMIT ?", (limit,))
     return c.fetchall()
 
+def clear_database(c, conn):
+    # Usunięcie wszystkich rekordów z tabeli 'wyniki'
+    c.execute("DELETE FROM scores")
+    # Zatwierdzenie zmian
+    conn.commit()
+    # Zamknięcie połączenia
+    conn.close()
+
 # setting device generator
 def init_generator_settings():
     instr_cnt91.write(reset)
@@ -168,7 +176,8 @@ def draw_axes(screen, num_markers=3, duration=3, finish = 3):
 def play(screen):
     PLAY_TEXT_INPUT.set_text("")
     PLAY_TEXT_INPUT.focus()
-    while True:
+    running = True
+    while running:
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
 
         screen.fill("black")
@@ -204,13 +213,14 @@ def play(screen):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BACK.checkForInput(PLAY_MOUSE_POS):
                     main_game_window()
+                    running = False
                 if PLAY_CLEAR.checkForInput(PLAY_MOUSE_POS):
                     PLAY_TEXT_INPUT.set_text("")
                 if PLAY_START.checkForInput(PLAY_MOUSE_POS):
                     PLAYER_NAME = PLAY_TEXT_INPUT.get_text()
                     if len(PLAYER_NAME) > 0:
                         countdown(PLAYER_NAME, screen)
-                        #play_attempts(PLAYER_NAME, screen, 3)
+                        running = False
 
             manager.process_events(event)
         
@@ -225,7 +235,8 @@ def countdown(player_nickname, screen):
     countdown_time = 0  # Zmienna do przechowywania czasu odliczania
     init_generator_settings()
     init_counter_settings()
-    while True:
+    running = True
+    while running:
         screen.fill("black")
 
         # Sprawdzenie, czy odliczanie się odbywa
@@ -240,11 +251,13 @@ def countdown(player_nickname, screen):
                 countdown_time = pygame.time.get_ticks()  # Zresetuj czas odliczania
         else:
             play_attempts(player_nickname, screen, 3)
+            running = False
 
         pygame.display.update()
 
 def score(player_nickname, scores, best_score, screen):
-    while True:
+    running = True
+    while running:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
         screen.fill("black")
@@ -287,8 +300,11 @@ def score(player_nickname, scores, best_score, screen):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if OPTIONS_EXIT.checkForInput(OPTIONS_MOUSE_POS):
                     main_game_window()
+                    running = False
                 if OPTIONS_REPLAY.checkForInput(OPTIONS_MOUSE_POS):
-                    play_attempts(player_nickname, screen, 3)
+                    countdown(player_nickname, screen)
+                    #play_attempts(player_nickname, screen, 3)
+                    running = False
 
         pygame.display.update()
 
@@ -306,7 +322,11 @@ def play_start(screen, attempt):
     countdown_start = 4  # Początkowa wartość odliczania
     countdown_time = 0  # Zmienna do przechowywania czasu odliczania
 
-    while True:
+    gate_open = True
+
+    running = True
+
+    while running:
         screen.fill("black")
 
         if attempt == 1:
@@ -374,18 +394,21 @@ def play_start(screen, attempt):
                             data = []
                         elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
                         drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
+                        running = False
                         return data[0]
                         #return elapsed_time
 
         if drawing:
+            if gate_open:
             # open gate
-            instr_cnt100.write(':INIT')
-            instr_cnt91.write(':OUTPut:TYPE ' + output)
-            print("Gate open pulse HIGH")
-            time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
-            output = 'OFF'
-            instr_cnt91.write(':OUTPut:TYPE ' + output)
-            print("Gate open pulse LOW")
+                instr_cnt100.write(':INIT')
+                instr_cnt91.write(':OUTPut:TYPE ' + output)
+                print("Gate open pulse HIGH")
+                time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                output = 'OFF'
+                instr_cnt91.write(':OUTPut:TYPE ' + output)
+                print("Gate open pulse LOW")
+                gate_open = False
 
             # Oblicz upłynięty czas
             elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
@@ -425,7 +448,10 @@ def play_attempts(player_nickname, screen, attempts):
     score(player_nickname, absolute_value_scores, best_score, screen)
 
 def options(screen):
-    while True:
+    conn = sqlite3.connect('scores.db')
+    c = conn.cursor()
+    running = True
+    while running:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
         screen.fill("black")
@@ -434,7 +460,13 @@ def options(screen):
         OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(screen_width / 2, 260))
         screen.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
-        OPTIONS_BACK = Button(image=pygame.image.load("assets/Back Rect.png"), pos=(screen_width / 2, 460), 
+        OPTIONS_CLEAR_DATABASE = Button(image=pygame.image.load("assets/Replay Rect.png"), pos=(screen_width / 2, 460), 
+                            text_input="CLEAR", font=get_font(75), base_color=LIGHT_GRAY, hovering_color=RED)
+
+        OPTIONS_CLEAR_DATABASE.changeColor(OPTIONS_MOUSE_POS)
+        OPTIONS_CLEAR_DATABASE.update(screen)
+
+        OPTIONS_BACK = Button(image=pygame.image.load("assets/Back Rect.png"), pos=(screen_width / 2, 660), 
                             text_input="BACK", font=get_font(75), base_color=LIGHT_GRAY, hovering_color=RED)
 
         OPTIONS_BACK.changeColor(OPTIONS_MOUSE_POS)
@@ -445,8 +477,11 @@ def options(screen):
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
+                if OPTIONS_CLEAR_DATABASE.checkForInput(OPTIONS_MOUSE_POS):
+                    clear_database(c, conn)
                 if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
                     main_game_window()
+                    running = False
 
         pygame.display.update()
 
@@ -455,7 +490,8 @@ def main_game_window():
     SCREEN = main_screen()
     pygame.display.set_caption("Okno 1")
 
-    while True:
+    running = True
+    while running:
         SCREEN.fill("black")
 
         MENU_MOUSE_POS = pygame.mouse.get_pos()
@@ -478,22 +514,22 @@ def main_game_window():
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                #close_event.set()
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     play(SCREEN)
+                    running = False
                 if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
                     options(SCREEN)
+                    running = False
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    #close_event.set()
                     pygame.quit()
                     sys.exit()
 
         pygame.display.update()
 
-def score_board_window():
+def score_board_window(main_window_running = True):
     # Tworzenie połączenia z bazą danych
     conn = sqlite3.connect('scores.db')
     c = conn.cursor()
@@ -501,7 +537,7 @@ def score_board_window():
     SCREEN = secondary_screen()
     pygame.display.set_caption("Okno 2")
 
-    while True:
+    while main_window_running:
         top10_scores = get_best_scores(c, limit=12)
         place = 1
         scores_height = 700
@@ -509,7 +545,7 @@ def score_board_window():
         attempts_height = 680
         SCREEN.blit(SCORE_BOARD_BG, (0, 0))
 
-        SCORE_BOARD_TEXT = get_font(80).render("SCORE BOARD", True, RED)
+        SCORE_BOARD_TEXT = get_font(80).render("SCORE BOARD", True, ORANGE)
         SCORE_BOARD_TEXT_RECT = SCORE_BOARD_TEXT.get_rect(center=(screen_width_secondary / 2, screen_height_secondary / 4))
 
         SCREEN.blit(SCORE_BOARD_TEXT, SCORE_BOARD_TEXT_RECT)
@@ -519,13 +555,13 @@ def score_board_window():
         SCREEN.blit(SCORE_BOARD_HEADER_TEXT, SCORE_BOARD_HEADER_RECT)
         
         for rekord in top10_scores:
-            SCORE_BOARD_PLACE_TEXT = get_font(15).render(f"{place}.", True, WHITE)
+            SCORE_BOARD_PLACE_TEXT = get_font(15).render(f"{place}.", True, ORANGE)
             SCORE_BOARD_PLACE_RECT = SCORE_BOARD_PLACE_TEXT.get_rect(center=(scores_width, scores_height))
 
             SCORE_BOARD_PLAYER_NAME_TEXT = get_font(15).render(f"{rekord[0]}", True, WHITE)
             SCORE_BOARD_PLAYER_NAME_RECT = SCORE_BOARD_PLAYER_NAME_TEXT.get_rect(center=(scores_width + 150, scores_height))
 
-            SCORE_BOARD_BEST_SCORE_TEXT = get_font(15).render(f"{rekord[1]}", True, ORANGE)
+            SCORE_BOARD_BEST_SCORE_TEXT = get_font(15).render(f"{rekord[1]}", True, RED)
             SCORE_BOARD_BEST_SCORE_RECT = SCORE_BOARD_BEST_SCORE_TEXT.get_rect(center=(scores_width + 490, scores_height))
 
             SCORE_BOARD_ATTEMPT1_TEXT = get_font(12).render(f"1st. {rekord[2]}", True, WHITE)
@@ -547,20 +583,20 @@ def score_board_window():
             scores_height += 100
             attempts_height += 100
 
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
         pygame.display.update()
 
 if __name__ == '__main__':
+    game_running = True
     multiprocessing.freeze_support()
     game_process = multiprocessing.Process(target=main_game_window)
-    score_board_process = multiprocessing.Process(target=score_board_window)
     game_process.start()
+    score_board_process = multiprocessing.Process(target=score_board_window)
     score_board_process.start()
+    while game_running:
+        if not game_process.is_alive():
+            score_board_process.kill()
+            game_process.kill()
+            game_running = False
     #game_process.join()
     #score_board_process.join()
 
