@@ -114,10 +114,34 @@ def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
 
 # Funkcja do dodawania wyników gracza
-def add_scores(c, conn, player, best_score, attempt1, attempt2, attempt3):
-    c.execute("INSERT INTO scores (player, bestscore, attempt1, attempt2, attempt3) VALUES (?, ?, ?, ?, ?)", 
-              (player, best_score, attempt1, attempt2, attempt3))
+# def add_scores(c, conn, player, best_score, attempt1, attempt2, attempt3):
+#     c.execute("INSERT INTO scores (player, bestscore, attempt1, attempt2, attempt3) VALUES (?, ?, ?, ?, ?)", 
+#               (player, best_score, attempt1, attempt2, attempt3))
+#     conn.commit()
+
+def add_scores_or_update(c, conn, player, best_score, attempt1, attempt2, attempt3):
+
+    # Sprawdzanie, czy gracz już istnieje
+    c.execute("SELECT 1 FROM scores WHERE player = ?", (player,))
+    if c.fetchone():
+        # Jeśli gracz istnieje, aktualizujemy jego wyniki
+        c.execute('''
+            UPDATE scores
+            SET bestscore = ?, attempt1 = ?, attempt2 = ?, attempt3 = ?
+            WHERE player = ?
+        ''', (best_score, attempt1, attempt2, attempt3, player))
+        print(f"Nadpisano wyniki gracza '{player}'.")
+    else:
+        # Jeśli gracz nie istnieje, dodajemy nowy rekord
+        c.execute('''
+            INSERT INTO scores (player, bestscore, attempt1, attempt2, attempt3)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (player, best_score, attempt1, attempt2, attempt3))
+        print(f"Dodano nowego gracza '{player}'.")
+
+    # Zatwierdzenie zmian
     conn.commit()
+    conn.close()
 
 def get_best_scores(c, limit=10):
     c.execute("SELECT * FROM scores ORDER BY bestscore ASC LIMIT ?", (limit,))
@@ -131,6 +155,18 @@ def clear_database(c, conn):
     # Zamknięcie połączenia
     conn.close()
 
+# Funkcja sprawdzająca, czy gracz o podanej nazwie już istnieje w tabeli
+def nickname_exists(c, conn, gracz):
+    # Zapytanie SQL sprawdzające istnienie gracza
+    c.execute("SELECT 1 FROM scores WHERE player = ?", (gracz,))
+    wynik = c.fetchone()
+
+    # Zamknięcie połączenia
+    conn.close()
+
+    # Jeśli wynik nie jest pusty (istnieje rekord), zwróć True
+    return wynik is not None
+
 # setting device generator
 def init_generator_settings():
     instr_cnt91.write(reset)
@@ -138,7 +174,6 @@ def init_generator_settings():
     instr_cnt91.write(pulse_period)
     instr_cnt91.write(pulse_width)
     instr_cnt91.query('*OPC?')
-
 
 # setting counter
 def init_counter_settings():
@@ -176,6 +211,8 @@ def draw_axes(screen, num_markers=3, duration=3, finish = 3):
 def play(screen):
     PLAY_TEXT_INPUT.set_text("")
     PLAY_TEXT_INPUT.focus()
+    nickname_failure = False
+    nickname_empty = False
     running = True
     while running:
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
@@ -185,6 +222,17 @@ def play(screen):
         PLAY_TEXT = get_font(45).render("Type your nickname...", True, LIGHT_GRAY)
         PLAY_RECT = PLAY_TEXT.get_rect(center=(screen_width / 2, 260))
         screen.blit(PLAY_TEXT, PLAY_RECT)
+
+        if nickname_failure:
+            nickname_empty = False
+            NICKNAME_FAILURE_TEXT = get_font(35).render("nickname alredy exist!", True, RED)
+            NICKNAME_FAILURE_RECT = NICKNAME_FAILURE_TEXT.get_rect(center=(screen_width / 2, 340))
+            screen.blit(NICKNAME_FAILURE_TEXT, NICKNAME_FAILURE_RECT)
+        
+        if nickname_empty:
+            NICKNAME_EMPTY_TEXT = get_font(35).render("text box is empty!", True, RED)
+            NICKNAME_EMPTY_RECT = NICKNAME_EMPTY_TEXT.get_rect(center=(screen_width / 2, 340))
+            screen.blit(NICKNAME_EMPTY_TEXT, NICKNAME_EMPTY_RECT)
 
         PLAY_BACK = Button(image=pygame.image.load("assets/Back Rect.png"), pos=(screen_width / 2 - 450, 660), 
                             text_input="BACK", font=get_font(75), base_color=LIGHT_GRAY, hovering_color=RED)
@@ -219,8 +267,15 @@ def play(screen):
                 if PLAY_START.checkForInput(PLAY_MOUSE_POS):
                     PLAYER_NAME = PLAY_TEXT_INPUT.get_text()
                     if len(PLAYER_NAME) > 0:
-                        countdown(PLAYER_NAME, screen)
-                        running = False
+                        conn = sqlite3.connect('scores.db')
+                        c = conn.cursor()
+                        if nickname_exists(c, conn, PLAYER_NAME):
+                            nickname_failure = True
+                        else:
+                            countdown(PLAYER_NAME, screen)
+                            running = False
+                    else:
+                        nickname_empty = True
 
             manager.process_events(event)
         
@@ -315,8 +370,8 @@ def play_start(screen, attempt):
     duration = 7  # Czas trwania w sekundach
     num_of_tags = 7
     finish = 3
-    frequency = 6 * math.pi / duration  # Częstotliwość
-    amplitude = 100  # Amplituda sinusoidy
+    frequency = 5 * math.pi / duration  # Częstotliwość
+    amplitude = 150  # Amplituda sinusoidy
     points = []  # Lista punktów do rysowania
 
     countdown_start = 4  # Początkowa wartość odliczania
@@ -463,7 +518,7 @@ def play_attempts(player_nickname, screen, attempts):
 
     best_score = min(absolute_value_scores)
 
-    add_scores(c, conn, player_nickname, best_score, absolute_value_scores[0], absolute_value_scores[1], absolute_value_scores[2])
+    add_scores_or_update(c, conn, player_nickname, best_score, absolute_value_scores[0], absolute_value_scores[1], absolute_value_scores[2])
 
     score(player_nickname, absolute_value_scores, best_score, screen)
 
