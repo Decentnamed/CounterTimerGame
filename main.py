@@ -338,7 +338,7 @@ def play_start(screen, attempt):
                     start_time = pygame.time.get_ticks()  # Zapisz czas rozpoczęcia
                     points.clear()  # Wyczyść punkty przed nowym rysowaniem
 
-        PLAY_TEXT = get_font(25).render("Tap 'enter' on keyboard to stop time count!", True, LIGHT_GRAY)
+        PLAY_TEXT = get_font(25).render("Tap 'enter' or 'space' on keyboard to stop time count!", True, LIGHT_GRAY)
         PLAY_RECT = PLAY_TEXT.get_rect(center=(screen_width / 2, 60))
         screen.blit(PLAY_TEXT, PLAY_RECT)
 
@@ -355,7 +355,7 @@ def play_start(screen, attempt):
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:  # Naciśnij Enter, aby zatrzymać rysowanie
+                if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:  # Naciśnij Enter lub spacje, aby zatrzymać rysowanie
                     if drawing:
                         # close gate
                         output = 'PULSe'
