@@ -5,14 +5,19 @@ import math
 import sqlite3
 import time
 import pyvisa as visa
+import json
 
 pygame.init()
 
-# Tworzenie połączenia z bazą danych
-conn = sqlite3.connect('scores.db')
+# load config file
+with open('config.json', 'r', encoding='utf-8') as file:
+    config_data = json.load(file)
+
+# Creating database connection
+conn = sqlite3.connect(config_data['databasename'])
 c = conn.cursor()
 
-# Tworzenie tabeli (jeśli nie istnieje) z kolumnami na nazwę gracza i trzy wyniki
+# Creating database if doesnt exists
 c.execute('''
     CREATE TABLE IF NOT EXISTS scores
     (player TEXT, bestscore REAL, attempt1 REAL, attempt2 REAL, attempt3 REAL)
@@ -21,11 +26,11 @@ c.execute('''
 # remote devices
 # counter
 rm = visa.ResourceManager()
-instr_cnt100 = rm.open_resource('TCPIP::10.40.12.84::hislip0::INSTR')
+instr_cnt100 = rm.open_resource(config_data['cnt100'])
 instr_cnt100.timeout = 25000
 
 # gate generator
-instr_cnt91 = rm.open_resource('USB0::0x14EB::0x0091::123456::INSTR')
+instr_cnt91 = rm.open_resource(config_data['cnt91'])
 print(instr_cnt100.query('*IDN?'))
 print(instr_cnt91.query('*IDN?'))
 
@@ -35,8 +40,8 @@ clear = '*CLS'
 
 # generator commands
 output = 'PULSe' # 'OFF' to low level no activity
-pulse_period = ':SOURce:PULSe:PERiod 0.01'
-pulse_width = ':SOURce:PULSe:WIDTh 0.005'
+pulse_period = f':SOURce:PULSe:PERiod {config_data['pulse_period']}'
+pulse_width = f':SOURce:PULSe:WIDTh {config_data['pulse_width']}'
 
 # Check available screens
 display_info = pygame.display.get_desktop_sizes()
@@ -45,7 +50,8 @@ display_info = pygame.display.get_desktop_sizes()
 screen_width, screen_height = display_info[0]
 
 # Get secondary screen size
-screen_width_secondary, screen_height_secondary = display_info[1]
+if len(display_info) > 1:
+    screen_width_secondary, screen_height_secondary = display_info[1]
 
 SCORE_BOARD_BG = pygame.image.load("assets/Score Board Background.jpg")
 
@@ -267,7 +273,7 @@ def play(screen):
                 if PLAY_START.checkForInput(PLAY_MOUSE_POS):
                     PLAYER_NAME = PLAY_TEXT_INPUT.get_text()
                     if len(PLAYER_NAME) > 0:
-                        conn = sqlite3.connect('scores.db')
+                        conn = sqlite3.connect(config_data['databasename'])
                         c = conn.cursor()
                         if nickname_exists(c, conn, PLAYER_NAME):
                             nickname_failure = True
@@ -502,7 +508,7 @@ def play_start(screen, attempt):
 
 def play_attempts(player_nickname, screen, attempts):
     # Tworzenie połączenia z bazą danych
-    conn = sqlite3.connect('scores.db')
+    conn = sqlite3.connect(config_data['databasename'])
     c = conn.cursor()
     scores = []
     absolute_value_scores = []
@@ -523,7 +529,7 @@ def play_attempts(player_nickname, screen, attempts):
     score(player_nickname, absolute_value_scores, best_score, screen)
 
 def options(screen):
-    conn = sqlite3.connect('scores.db')
+    conn = sqlite3.connect(config_data['databasename'])
     c = conn.cursor()
     running = True
     while running:
@@ -606,7 +612,7 @@ def main_game_window():
 
 def score_board_window(main_window_running=True):
     # Tworzenie połączenia z bazą danych
-    conn = sqlite3.connect('scores.db')
+    conn = sqlite3.connect(config_data['databasename'])
     c = conn.cursor()
     pygame.init()
     SCREEN = secondary_screen()
@@ -687,13 +693,14 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()
     game_process = multiprocessing.Process(target=main_game_window)
     game_process.start()
-    score_board_process = multiprocessing.Process(target=score_board_window)
-    score_board_process.start()
-    while game_running:
-        if not game_process.is_alive():
-            score_board_process.kill()
-            game_process.kill()
-            game_running = False
+    if len(display_info) > 1:
+        score_board_process = multiprocessing.Process(target=score_board_window)
+        score_board_process.start()
+        while game_running:
+            if not game_process.is_alive():
+                score_board_process.kill()
+                game_process.kill()
+                game_running = False
     #game_process.join()
     #score_board_process.join()
 
