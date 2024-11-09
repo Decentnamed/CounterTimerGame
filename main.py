@@ -40,8 +40,8 @@ clear = '*CLS'
 
 # generator commands
 output = 'PULSe' # 'OFF' to low level no activity
-pulse_period = f':SOURce:PULSe:PERiod {config_data['pulse_period']}'
-pulse_width = f':SOURce:PULSe:WIDTh {config_data['pulse_width']}'
+pulse_period = ':SOURce:PULSe:PERiod ' + config_data['pulse_period']
+pulse_width = ':SOURce:PULSe:WIDTh ' + config_data['pulse_width']
 
 # Check available screens
 display_info = pygame.display.get_desktop_sizes()
