@@ -462,6 +462,7 @@ def play_start(screen, attempt):
         if drawing:
             if gate_open:
             # open gate
+                output = 'PULSe'
                 instr_cnt100.write(':INIT')
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate open pulse HIGH")
