@@ -442,7 +442,7 @@ def play_start(screen, attempt):
                         output = 'PULSe'
                         instr_cnt91.write(':OUTPut:TYPE ' + output)
                         print("Gate close pulse HIGH")
-                        time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                        time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
                         output = 'OFF'
                         instr_cnt91.write(':OUTPut:TYPE ' + output)
                         print("Gate close pulse LOW")
@@ -466,7 +466,7 @@ def play_start(screen, attempt):
                 instr_cnt100.write(':INIT')
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate open pulse HIGH")
-                time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
                 output = 'OFF'
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate open pulse LOW")
@@ -485,7 +485,7 @@ def play_start(screen, attempt):
                 output = 'PULSe'
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate close pulse HIGH")
-                time.sleep(0.01) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
                 output = 'OFF'
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate close pulse LOW")
@@ -697,6 +697,7 @@ if __name__ == '__main__':
     if len(display_info) > 1:
         score_board_process = multiprocessing.Process(target=score_board_window)
         score_board_process.start()
+        print("Score board alive")
         while game_running:
             if not game_process.is_alive():
                 score_board_process.kill()

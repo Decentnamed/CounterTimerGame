@@ -3,5 +3,6 @@
     "cnt91": "USB0::0x14EB::0x0091::123456::INSTR",
     "databasename": "scores.db",
     "pulse_period": "0.01",
-    "pulse_width": "0.005"
+    "pulse_width": "0.005",
+    "rise": 0.1
 }
