@@ -1,7 +1,0 @@
-{
-    "cnt100": "TCPIP::10.40.12.84::hislip0::INSTR",
-    "cnt91": "USB0::0x14EB::0x0091::123456::INSTR",
-    "databasename": "scores.db",
-    "pulse_period": "0.01",
-    "pulse_width": "0.005"
-}
