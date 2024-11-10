@@ -23,6 +23,7 @@ instr_cnt91.timeout = 1000
 print(instr_cnt100.query('*IDN?'))
 print(instr_cnt91.query('*IDN?'))
 
+
 pygame.init()
 
 # Creating database connection
@@ -43,6 +44,11 @@ clear = '*CLS'
 output = 'PULSe' # 'OFF' to low level no activity
 pulse_period = ':SOURce:PULSe:PERiod ' + config_data['pulse_period']
 pulse_width = ':SOURce:PULSe:WIDTh ' + config_data['pulse_width']
+
+instr_cnt91.write(reset)
+instr_cnt91.write(clear)
+instr_cnt100.write(reset)
+instr_cnt100.write(clear)
 
 # Check available screens
 display_info = pygame.display.get_desktop_sizes()
