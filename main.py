@@ -7,21 +7,9 @@ import time
 import pyvisa as visa
 import json
 
-pygame.init()
-
 # load config file
 with open('config.json', 'r', encoding='utf-8') as file:
     config_data = json.load(file)
-
-# Creating database connection
-conn = sqlite3.connect(config_data['databasename'])
-c = conn.cursor()
-
-# Creating database if doesnt exists
-c.execute('''
-    CREATE TABLE IF NOT EXISTS scores
-    (player TEXT, bestscore REAL, attempt1 REAL, attempt2 REAL, attempt3 REAL)
-''')
 
 # remote devices
 # counter
@@ -33,6 +21,18 @@ instr_cnt100.timeout = 25000
 instr_cnt91 = rm.open_resource(config_data['cnt91'])
 print(instr_cnt100.query('*IDN?'))
 print(instr_cnt91.query('*IDN?'))
+
+pygame.init()
+
+# Creating database connection
+conn = sqlite3.connect(config_data['databasename'])
+c = conn.cursor()
+
+# Creating database if doesnt exists
+c.execute('''
+    CREATE TABLE IF NOT EXISTS scores
+    (player TEXT, bestscore REAL, attempt1 REAL, attempt2 REAL, attempt3 REAL)
+''')
 
 # common commands
 reset = '*RST'
@@ -49,14 +49,14 @@ display_info = pygame.display.get_desktop_sizes()
 # Get Main screen size
 screen_width, screen_height = display_info[0]
 
-print(f"SCREENS: {display_info}")
+print(f"Screen sizes: {display_info}")
 print(f"Number of screens: {len(display_info)}")
-print(f"SCREEN 1: {len(display_info[0])}")
+print(f"SCREEN 1: {display_info[0]}")
 
 # Get secondary screen size
 if len(display_info) > 1:
     screen_width_secondary, screen_height_secondary = display_info[1]
-    print(f"SCREEN 2: {len(display_info[1])}")
+    print(f"SCREEN 2: {display_info[1]}")
 
 SCORE_BOARD_BG = pygame.image.load("assets/Score Board Background.jpg")
 
@@ -702,7 +702,8 @@ if __name__ == '__main__':
     if len(display_info) > 1:
         score_board_process = multiprocessing.Process(target=score_board_window)
         score_board_process.start()
-        print("Score board alive")
+        if score_board_process.is_alive():
+            print("Score board alive")
         while game_running:
             if not game_process.is_alive():
                 score_board_process.kill()
