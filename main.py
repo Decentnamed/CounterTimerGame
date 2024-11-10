@@ -49,9 +49,14 @@ display_info = pygame.display.get_desktop_sizes()
 # Get Main screen size
 screen_width, screen_height = display_info[0]
 
+print(f"SCREENS: {display_info}")
+print(f"Number of screens: {len(display_info)}")
+print(f"SCREEN 1: {len(display_info[0])}")
+
 # Get secondary screen size
 if len(display_info) > 1:
     screen_width_secondary, screen_height_secondary = display_info[1]
+    print(f"SCREEN 2: {len(display_info[1])}")
 
 SCORE_BOARD_BG = pygame.image.load("assets/Score Board Background.jpg")
 
@@ -703,6 +708,13 @@ if __name__ == '__main__':
                 score_board_process.kill()
                 game_process.kill()
                 game_running = False
+    
+    if not game_process.is_alive():
+        instr_cnt91.write(reset)
+        instr_cnt91.write(clear)
+        instr_cnt100.write(reset)
+        instr_cnt100.write(clear)
+
     #game_process.join()
     #score_board_process.join()
 
