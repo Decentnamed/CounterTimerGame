@@ -391,6 +391,8 @@ def play_start(screen, attempt):
 
     gate_open = True
 
+    gate_close = True
+
     running = True
 
     while running:
@@ -444,27 +446,29 @@ def play_start(screen, attempt):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:  # Naciśnij Enter lub spacje, aby zatrzymać rysowanie
                     if drawing:
-                        # close gate
-                        output = 'PULSe'
-                        instr_cnt91.write(':OUTPut:TYPE ' + output)
-                        print("Gate close pulse HIGH")
-                        time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
-                        output = 'OFF'
-                        instr_cnt91.write(':OUTPut:TYPE ' + output)
-                        print("Gate close pulse LOW")
-                        instr_cnt91.query('*OPC?')
-                        instr_cnt100.query('*OPC?')
-                        data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
-                        data_str = data_str.strip()  # to remove \n at the end
-                        if len(data_str) > 0:
-                            data = list(map(float, data_str.split(',')))  # Convert the string to python array
-                        else:
-                            data = []
-                        elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
-                        drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
-                        running = False
-                        return data[0]
-                        #return elapsed_time
+                        if gate_close:
+                            # close gate
+                            output = 'PULSe'
+                            instr_cnt91.write(':OUTPut:TYPE ' + output)
+                            print("Gate close pulse HIGH")
+                            time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                            output = 'OFF'
+                            instr_cnt91.write(':OUTPut:TYPE ' + output)
+                            print("Gate close pulse LOW")
+                            instr_cnt91.query('*OPC?')
+                            instr_cnt100.query('*OPC?')
+                            data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
+                            data_str = data_str.strip()  # to remove \n at the end
+                            if len(data_str) > 0:
+                                data = list(map(float, data_str.split(',')))  # Convert the string to python array
+                            else:
+                                data = []
+                            elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
+                            drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
+                            running = False
+                            gate_close = False
+                            return data[0]
+                            #return elapsed_time
 
         if drawing:
             if gate_open:
@@ -489,26 +493,28 @@ def play_start(screen, attempt):
                 y = AXIS_X_START_POINT_Y - amplitude * math.sin(frequency * elapsed_time)  # Użyj upływu czasu w sinusoidzie
                 points.append((int(AXIS_X_START_POINT_X + (elapsed_time / duration) * (AXIS_X_END_POINT_X - AXIS_X_START_POINT_X)), int(y)))  # Dodaj punkt do listy
             else:
-                # close gate
-                output = 'PULSe'
-                instr_cnt91.write(':OUTPut:TYPE ' + output)
-                print("Gate close pulse HIGH")
-                time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
-                output = 'OFF'
-                instr_cnt91.write(':OUTPut:TYPE ' + output)
-                print("Gate close pulse LOW")
-                instr_cnt91.query('*OPC?')
-                instr_cnt100.query('*OPC?')
-                data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
-                data_str = data_str.strip()  # to remove \n at the end
-                if len(data_str) > 0:
-                    data = list(map(float, data_str.split(',')))  # Convert the string to python array
-                else:
-                    data = []
-                elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
-                drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
-                running = False
-                return data[0]
+                if gate_close:
+                    # close gate
+                    output = 'PULSe'
+                    instr_cnt91.write(':OUTPut:TYPE ' + output)
+                    print("Gate close pulse HIGH")
+                    time.sleep(config_data['rise']) # to opoznienie jest wazne, inaczej licznik nie "zlapie" zbocza 
+                    output = 'OFF'
+                    instr_cnt91.write(':OUTPut:TYPE ' + output)
+                    print("Gate close pulse LOW")
+                    instr_cnt91.query('*OPC?')
+                    instr_cnt100.query('*OPC?')
+                    data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
+                    data_str = data_str.strip()  # to remove \n at the end
+                    if len(data_str) > 0:
+                        data = list(map(float, data_str.split(',')))  # Convert the string to python array
+                    else:
+                        data = []
+                    elapsed_time = (pygame.time.get_ticks() - start_time) / 1000  # Czas w sekundach
+                    drawing = False  # Zatrzymaj rysowanie, ale nie możesz już tego zrobić ponownie
+                    running = False
+                    gate_close = False
+                    return data[0]
             
             # Rysuj wszystkie punkty
             for point in points:
