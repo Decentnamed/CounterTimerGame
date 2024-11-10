@@ -701,13 +701,17 @@ def score_board_window(main_window_running=True):
 if __name__ == '__main__':
     game_running = True
     multiprocessing.freeze_support()
+    print("Running Main GAME process...")
     game_process = multiprocessing.Process(target=main_game_window)
     game_process.start()
+    print("Main GAME process alive")
     if len(display_info) > 1:
+        print("Running Score board process...")
+        time.sleep(1)
         score_board_process = multiprocessing.Process(target=score_board_window)
         score_board_process.start()
         if score_board_process.is_alive():
-            print("Score board alive")
+            print("Score board processalive")
         while game_running:
             if not game_process.is_alive():
                 score_board_process.kill()
