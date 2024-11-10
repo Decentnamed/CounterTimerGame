@@ -19,6 +19,7 @@ instr_cnt100.timeout = 25000
 
 # gate generator
 instr_cnt91 = rm.open_resource(config_data['cnt91'])
+instr_cnt91.timeout = 1000
 print(instr_cnt100.query('*IDN?'))
 print(instr_cnt91.query('*IDN?'))
 
@@ -451,6 +452,7 @@ def play_start(screen, attempt):
                         output = 'OFF'
                         instr_cnt91.write(':OUTPut:TYPE ' + output)
                         print("Gate close pulse LOW")
+                        instr_cnt91.query('*OPC?')
                         instr_cnt100.query('*OPC?')
                         data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
                         data_str = data_str.strip()  # to remove \n at the end
@@ -475,6 +477,7 @@ def play_start(screen, attempt):
                 output = 'OFF'
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate open pulse LOW")
+                instr_cnt91.query('*OPC?')
                 gate_open = False
 
             # Oblicz upłynięty czas
@@ -494,6 +497,7 @@ def play_start(screen, attempt):
                 output = 'OFF'
                 instr_cnt91.write(':OUTPut:TYPE ' + output)
                 print("Gate close pulse LOW")
+                instr_cnt91.query('*OPC?')
                 instr_cnt100.query('*OPC?')
                 data_str = instr_cnt100.query(':FETCH:ARRAY? MAX, A')
                 data_str = data_str.strip()  # to remove \n at the end
